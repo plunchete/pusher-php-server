@@ -1,5 +1,7 @@
 <?php
 
+require_once( 'JsonSerializer.php' );
+
 /* 
 		Pusher PHP Library
 	/////////////////////////////////
@@ -56,7 +58,8 @@ class Pusher
 		'host' => 'http://api.pusherapp.com',
 		'port' => 80,
 		'timeout' => 30,
-		'debug' => false
+		'debug' => false,
+		'serializer' => null
 	);
 	private $logger = null;
 
@@ -75,6 +78,7 @@ class Pusher
 	* 	host - the host including the http/https scheme. No trailing forward slash.
 	* 	port - the http port
 	* 	timeout - the http timout
+	*		seralizer - An iSerialzer
 	* @param string $host [optional] - deprecated
 	* @param int $port [optional] - deprecated
 	* @param int $timeout [optional] - deprecated
@@ -113,6 +117,10 @@ class Pusher
 			}
 		}
 
+		if( $this->settings[ 'serializer' ] === null ) {
+			$this->settings[ 'serializer' ] = new JsonSerializer();
+		}
+
 	}
 
 	/**
@@ -144,11 +152,6 @@ class Pusher
 	*/
 	private function check_compatibility()
 	{
-		if ( ! extension_loaded( 'curl' ) || ! extension_loaded( 'json' ) )
-		{
-			throw new PusherException('There is missing dependant extensions - please ensure both cURL and JSON modules are installed');
-		}
-
 		if ( ! in_array( 'sha256', hash_algos() ) )
 		{
 			throw new PusherException('SHA256 appears to be unsupported - make sure you have support for it, or upgrade your version of PHP.');
@@ -285,7 +288,7 @@ class Pusher
 		
 		$s_url = $this->settings['base_path'] . '/events';		
 		
-		$data_encoded = $already_encoded ? $data : json_encode( $data );
+		$data_encoded = $already_encoded ? $data : $this->settings[ 'serializer' ]->serialize( $data );
 
 		$post_params = array();
 		$post_params[ 'name' ] = $event;
@@ -297,7 +300,7 @@ class Pusher
 			$post_params[ 'socket_id' ] = $socket_id;
 		}
 
-		$post_value = json_encode( $post_params );
+		$post_value = $this->settings[ 'serializer' ]->serialize( $post_params );
 
 		$query_params['body_md5'] = md5( $post_value );
 
@@ -338,7 +341,7 @@ class Pusher
 		
 		if( $response[ 'status' ] == 200)
 		{
-			$response = json_decode( $response[ 'body' ] );
+			$response = $this->settings[ 'serializer' ]->deserialize( $response[ 'body' ] );
 		}
 		else
 		{
@@ -361,7 +364,7 @@ class Pusher
 		
 		if( $response[ 'status' ] == 200)
 		{
-			$response = json_decode( $response[ 'body' ] );
+			$response = $this->settings[ 'serializer' ]->deserialize( $response[ 'body' ] );
 			$response->channels = get_object_vars( $response->channels );
 		}
 		else
@@ -390,7 +393,7 @@ class Pusher
 		
 		if( $response[ 'status' ] == 200)
 		{
-			$response[ 'result' ] = json_decode( $response[ 'body' ], true );
+			$response[ 'result' ] = $this->settings[ 'serializer' ]->deserialize( $response[ 'body' ], true );
 		}
 		else
 		{
@@ -423,7 +426,7 @@ class Pusher
 		if($custom_data){
 			$signature['channel_data'] = $custom_data;
 		}
-		return json_encode( $signature );
+		return $this->settings[ 'serializer' ]->serialize( $signature );
 
 	}
 
@@ -444,7 +447,7 @@ class Pusher
 			$user_data['user_info'] = $user_info;
 		}
 
-		return $this->socket_auth($channel, $socket_id, json_encode($user_data) );
+		return $this->socket_auth($channel, $socket_id, $this->settings[ 'serializer' ]->serialize($user_data) );
 	}
 
 }

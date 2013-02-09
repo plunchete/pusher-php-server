@@ -41,6 +41,13 @@
 
 			$settings = $pusher->getSettings();
 			$this->assertEquals( $settings[ 'timeout' ], $timeout );
-		}		
+		}
+
+		public function testNativeJsonSerializerIsDefaultSerializer() {
+			$pusher = new Pusher( 'app_key', 'app_secret', 'app_id' );
+
+			$settings = $pusher->getSettings();
+			$this->assertTrue( $settings[ 'serializer' ] instanceof JsonSerializer );
+		}
 
 	}
